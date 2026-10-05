@@ -1,3 +1,4 @@
+from pathlib import Path
 import atexit
 import os
 import time
@@ -149,12 +150,29 @@ def process_single_pdf(args):
     default=None,
     help="Number of worker processes to use.  Set automatically by default, but can be overridden.",
 )
+@click.option(
+    "--recursive",
+    is_flag=True,
+    default=False,
+    help="Recurse folder to find files"
+)
 @ConfigParser.common_options
 def convert_cli(in_folder: str, **kwargs):
     total_pages = 0
     in_folder = os.path.abspath(in_folder)
-    files = [os.path.join(in_folder, f) for f in os.listdir(in_folder)]
-    files = [f for f in files if os.path.isfile(f)]
+    if kwargs.get("recursive", False):
+        def _traverse(p: Path, files: list[str]) -> None:
+            if p.is_file():
+                files.append(str(p))
+            elif p.is_dir():
+                for child in p.iterdir():
+                    _traverse(child,files)
+
+        files = []
+        _traverse(Path(in_folder), files)
+    else:
+        files = [os.path.join(in_folder, f) for f in os.listdir(in_folder)]
+        files = [f for f in files if os.path.isfile(f)]
 
     # Handle chunks if we're processing in parallel
     # Ensure we get all files into a chunk
